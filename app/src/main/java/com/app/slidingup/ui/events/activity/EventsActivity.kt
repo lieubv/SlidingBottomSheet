@@ -237,7 +237,7 @@ class EventsActivity : AppCompatActivity(), OnMapReadyCallback,
         Log.d("onMarkerClick", "marker tag: ${marker?.tag}")
 
         val image1 = EventImages("https://images2.thanhnien.vn/Uploaded/haoph/2021_11_19/ngoctrinh-gejd-455.jpg")
-        val image2 = EventImages("https://www.google.com/url?sa=i&url=https%3A%2F%2Fmogi.vn%2Fnews%2Fnha-ngoc-trinh-75767%2F&psig=AOvVaw0MGO_WjsH8kXQTTo2O6SaZ&ust=1689827572378000&source=images&cd=vfe&opi=89978449&ved=0CA0QjRxqFwoTCJDkwLP4mYADFQAAAAAdAAAAABAe")
+        val image2 = EventImages("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR3fvuHctNosmo8R5dmaWH8aztBsv4KqnZMYg&usqp=CAU")
         val eventName = EventName("Alex", "Alex", "Alex", "Alex")
         val eventLocation = EventLocation(20.58, 105.8876)
         val eventDescription = EventDescription("Hello from Alex", arrayListOf(image1, image2))
