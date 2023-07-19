@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">SlidingBottomSheet</string>
 
-    <string name="google_map_api_key">AIzaSyDzi5_-_9Gcdx9ozCl1PMl9ZVvf3T_cEYg</string>
+    <string name="google_map_api_key">AIzaSyC-0jobK6vvw7XgjyNOAXezTsAlmUFbZC4</string>
 
     <!-- Events Activity -->
     <string name="play_service_not_installed">Play services is not installed!</string>

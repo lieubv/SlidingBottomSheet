@@ -1,5 +1,6 @@
 package com.app.slidingup.ui.events.viewmodel
 
+import android.util.Log
 import com.app.slidingup.api.NetworkState
 import com.app.slidingup.base.BaseViewModel
 import com.app.slidingup.extensions.NonNullMediatorLiveData
@@ -13,6 +14,7 @@ class PolyLineViewModel(private val polyLineUseCase : PolyLineUseCase) : BaseVie
     // FOR DATA --
     fun getPolyLineData(markerLatLng : LatLng, currentLatLng : LatLng) : NonNullMediatorLiveData<NetworkState<List<PolylineData>>> {
 
+        Log.d("getPolyLineData", "marker: $markerLatLng, to current: $currentLatLng")
         val polyLineList = NonNullMediatorLiveData<NetworkState<List<PolylineData>>>()
 
         ioScope.launch { polyLineUseCase.executeQuery(polyLineList,markerLatLng,currentLatLng) }

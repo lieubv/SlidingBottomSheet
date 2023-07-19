@@ -3,6 +3,7 @@ package com.app.slidingup.location
 import android.annotation.SuppressLint
 import android.location.Location
 import android.os.Looper
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import com.app.slidingup.extensions.NonNullMediatorLiveData
@@ -44,6 +45,7 @@ class LocationViewModel(private val locationProviderClient : FusedLocationProvid
      */
 
     fun stopLocationUpdates() {
+        Log.d("Alex", "stopLocationUpdates")
         locationProviderClient.removeLocationUpdates(locationCallback)
     }
 

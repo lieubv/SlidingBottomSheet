@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Parcelable
+import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Observer
 import com.app.slidingup.R
@@ -18,6 +19,11 @@ import com.app.slidingup.helper.PermissionHelper.Companion.PERMISSIONS_REQUEST_L
 import com.app.slidingup.helper.UiHelper
 import com.app.slidingup.location.GpsSetting
 import com.app.slidingup.location.LocationViewModel
+import com.app.slidingup.model.events.Event
+import com.app.slidingup.model.events.EventDescription
+import com.app.slidingup.model.events.EventImages
+import com.app.slidingup.model.events.EventLocation
+import com.app.slidingup.model.events.EventName
 import com.app.slidingup.ui.events.fragment.EventsFragment
 import com.app.slidingup.ui.events.viewmodel.EventsViewModel
 import com.app.slidingup.utils.Constants.Companion.EVENT_TAG
@@ -32,19 +38,20 @@ import kotlinx.android.synthetic.main.activity_events.*
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
-class EventsActivity : AppCompatActivity(), OnMapReadyCallback, PermissionHelper.OnPermissionRequested
-    ,GoogleMap.OnMarkerClickListener {
+class EventsActivity : AppCompatActivity(), OnMapReadyCallback,
+    PermissionHelper.OnPermissionRequested, GoogleMap.OnMarkerClickListener {
 
     // FOR DATA ---
-    private val locationVM : LocationViewModel by viewModel()
-    private val eventsVM : EventsViewModel by viewModel()
-    private val uiHelper : UiHelper by inject()
-    private val googleMapHelper : GoogleMapHelper by inject()
-    private var gpsSetting : GpsSetting? = null
-    private var permissionHelper : PermissionHelper? = null
-    private var googleMap : GoogleMap? = null
-    private var currentLatLng : LatLng? = null
+    private val locationVM: LocationViewModel by viewModel()
+    private val eventsVM: EventsViewModel by viewModel()
+    private val uiHelper: UiHelper by inject()
+    private val googleMapHelper: GoogleMapHelper by inject()
+    private var gpsSetting: GpsSetting? = null
+    private var permissionHelper: PermissionHelper? = null
+    private var googleMap: GoogleMap? = null
+    private var currentLatLng: LatLng? = null
     private var isPermissionPermanentlyDenied = false
+    private var markers: MutableList<Marker> = mutableListOf()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,12 +62,16 @@ class EventsActivity : AppCompatActivity(), OnMapReadyCallback, PermissionHelper
 
         checkPlayServicesAvailable()
 
-        gpsSetting = GpsSetting(this,uiHelper)
+        gpsSetting = GpsSetting(this, uiHelper)
 
-        permissionHelper = PermissionHelper(this,uiHelper)
+        permissionHelper = PermissionHelper(this, uiHelper)
 
-        if(!permissionHelper?.isPermissionGranted(ACCESS_FINE_LOCATION)!!)
-            permissionHelper?.requestPermission(arrayOf(ACCESS_FINE_LOCATION),PERMISSIONS_REQUEST_LOCATION,this)
+        if (!permissionHelper?.isPermissionGranted(ACCESS_FINE_LOCATION)!!)
+            permissionHelper?.requestPermission(
+                arrayOf(ACCESS_FINE_LOCATION),
+                PERMISSIONS_REQUEST_LOCATION,
+                this
+            )
         else enableGps()
     }
 
@@ -69,7 +80,7 @@ class EventsActivity : AppCompatActivity(), OnMapReadyCallback, PermissionHelper
      * */
 
     private fun checkPlayServicesAvailable() {
-        if(!uiHelper.isPlayServicesAvailable()) {
+        if (!uiHelper.isPlayServicesAvailable()) {
             uiHelper.toast(resources.getString(R.string.play_service_not_installed))
             finish()
         }
@@ -78,7 +89,7 @@ class EventsActivity : AppCompatActivity(), OnMapReadyCallback, PermissionHelper
     override fun onResume() {
         super.onResume()
 
-        if(isPermissionPermanentlyDenied) checkPermissionGranted()
+        if (isPermissionPermanentlyDenied) checkPermissionGranted()
     }
 
     /*
@@ -86,12 +97,20 @@ class EventsActivity : AppCompatActivity(), OnMapReadyCallback, PermissionHelper
      * */
 
     private fun checkPermissionGranted() {
-        if(ActivityCompat.checkSelfPermission(this, ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        )
             permissionHelper?.openSettingsDialog()
         else enableGps()
     }
 
-    override fun onRequestPermissionsResult(requestCode : Int, permissions : Array<out String>, grantResults : IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
         permissionHelper?.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
@@ -101,9 +120,9 @@ class EventsActivity : AppCompatActivity(), OnMapReadyCallback, PermissionHelper
      * @param isPermissionGranted the [Boolean]
      */
 
-    override fun onPermissionResponse(isPermissionGranted : Boolean) {
+    override fun onPermissionResponse(isPermissionGranted: Boolean) {
 
-        if(!isPermissionGranted) isPermissionPermanentlyDenied = true
+        if (!isPermissionGranted) isPermissionPermanentlyDenied = true
         else enableGps()
     }
 
@@ -115,17 +134,16 @@ class EventsActivity : AppCompatActivity(), OnMapReadyCallback, PermissionHelper
     }
 
     // Start Observing the User Current Location and set the marker to it.
-    private fun subscribeLocationObserver()
-    {
-        uiHelper.showProgressBar(progress_bar,true)
+    private fun subscribeLocationObserver() {
+        uiHelper.showProgressBar(progress_bar, true)
 
         // OBSERVABLES ---
         locationVM.currentLocation.nonNull().observe(this, Observer {
 
-            uiHelper.showProgressBar(progress_bar,false)
-            currentLatLng = googleMapHelper.getLatLng(it.latitude,it.longitude)
+            uiHelper.showProgressBar(progress_bar, false)
+            currentLatLng = googleMapHelper.getLatLng(it.latitude, it.longitude)
 
-            currentLatLng?.let{ data -> mapSetUp(data) }
+            currentLatLng?.let { data -> mapSetUp(data) }
 
             locationVM.stopLocationUpdates()
         })
@@ -142,70 +160,111 @@ class EventsActivity : AppCompatActivity(), OnMapReadyCallback, PermissionHelper
                     RESULT_OK -> subscribeLocationObserver()
 
                     RESULT_CANCELED -> {
-                        uiHelper.showPositiveDialogWithListener(this,
+                        uiHelper.showPositiveDialogWithListener(
+                            this,
                             resources.getString(R.string.need_location),
                             resources.getString(R.string.location_content),
                             object : GpsEnableListener {
                                 override fun onPositive() {
                                     enableGps()
                                 }
-                            }, resources.getString(R.string.turn_on), false)
+                            }, resources.getString(R.string.turn_on), false
+                        )
                     }
                 }
         }
     }
 
     // Add a marker to the current Location, and move the camera.
-    private fun mapSetUp(latLing : LatLng?) {
-        if(googleMap != null) {
+    private fun mapSetUp(latLing: LatLng?) {
+        if (googleMap != null) {
             googleMap?.addMarker(latLing?.let { googleMapHelper.addCurrentLocationMarker(it) })
             googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(latLing, 14.0F))
 
-            if(uiHelper.getConnectivityStatus()) {
+            if (uiHelper.getConnectivityStatus()) {
                 // OBSERVABLES ---
-                eventsVM.getEvents().nonNull().observe(this,Observer{
-                    when(it)
-                    {
-                        is NetworkState.Loading ->  uiHelper.showProgressBar(progress_bar,true)
+                markers.forEach {
+                    it.remove()
+                }
+                markers.clear()
+                eventsVM.getEvents().nonNull()
+                    .observe(this, Observer {
+                        when (it) {
+                            is NetworkState.Loading -> uiHelper.showProgressBar(progress_bar, true)
 
-                        is NetworkState.Success -> {
-                            if(it.data != null) {
-                                uiHelper.showProgressBar(progress_bar,false)
+                            is NetworkState.Success -> {
+                                if (it.data != null) {
+                                    uiHelper.showProgressBar(progress_bar, false)
 
-                                for (i in it.data.events.indices)
-                                    googleMap?.addMarker(it.data.events[i].eventLocation?.let { data ->
-                                        googleMapHelper.addMarker(data)})?.tag = it.data.events[i]
+//                                    for (i in it.data.events.indices) {
+//                                        googleMap?.addMarker(it.data.events[i].eventLocation?.let { data ->
+//                                            googleMapHelper.addMarker(data)
+//                                        })?.tag = it.data.events[i]
+//                                    }
+                                    it.data.events.forEach { event ->
+                                        event.eventLocation?.let {
+                                            val markerOption =
+                                                googleMapHelper.addMarker(event.eventLocation)
+                                            googleMap?.addMarker(markerOption)?.let { marker ->
+                                                marker.tag = event
+                                                markers.add(marker)
+                                            }
+                                        }
+                                    }
+                                }
                             }
+
+                            is NetworkState.Error -> uiHelper.showProgressBar(progress_bar, false)
                         }
-                        is NetworkState.Error -> uiHelper.showProgressBar(progress_bar,false)
-                    }
-                })
-            }
-            else uiHelper.showSnackBar(event_activity_rv,resources.getString(R.string.error_network_connection))
+                    })
+            } else uiHelper.showSnackBar(
+                event_activity_rv,
+                resources.getString(R.string.error_network_connection)
+            )
         }
     }
 
     /** Called when the map is ready. */
-    override fun onMapReady(map : GoogleMap?) {
+    override fun onMapReady(map: GoogleMap?) {
         googleMap = map
         googleMap?.let { googleMapHelper.defaultMapSettings(it) }
         googleMap?.setOnMarkerClickListener(this)
     }
 
     /** Called when the user clicks a marker. */
-    override fun onMarkerClick(marker : Marker?) : Boolean {
+    override fun onMarkerClick(marker: Marker?): Boolean {
+        //val events = marker?.tag as? Event
+        Log.d("onMarkerClick", "marker tag: ${marker?.tag}")
 
-        val events = marker?.tag
-        events?.let {
+        val image1 = EventImages("https://images2.thanhnien.vn/Uploaded/haoph/2021_11_19/ngoctrinh-gejd-455.jpg")
+        val image2 = EventImages("https://www.google.com/url?sa=i&url=https%3A%2F%2Fmogi.vn%2Fnews%2Fnha-ngoc-trinh-75767%2F&psig=AOvVaw0MGO_WjsH8kXQTTo2O6SaZ&ust=1689827572378000&source=images&cd=vfe&opi=89978449&ved=0CA0QjRxqFwoTCJDkwLP4mYADFQAAAAAdAAAAABAe")
+        val eventName = EventName("Alex", "Alex", "Alex", "Alex")
+        val eventLocation = EventLocation(20.58, 105.8876)
+        val eventDescription = EventDescription("Hello from Alex", arrayListOf(image1, image2))
+        val event = Event("1", eventName, eventLocation, eventDescription)
+        marker?.let {
             googleMapHelper.changeMarkerColor(marker)
-
-            val fragment = googleMap?.let { currentLatLng?.let { data -> EventsFragment(it, marker.position, data) } }
+            val fragment = googleMap?.let {
+                Log.d("onMarkerClick", "currentLatLng: ${currentLatLng}")
+                currentLatLng?.let { data ->
+                    EventsFragment(
+                        it,
+                        marker.position,
+                        data
+                    )
+                }
+            }
             val args = Bundle()
-            args.putParcelable(EVENT_TAG, events as Parcelable?)
+            args.putParcelable(EVENT_TAG, event as Parcelable?)
             fragment?.arguments = args
 
-            fragment?.let { supportFragmentManager.beginTransaction().replace(R.id.events_fragment_container, it).commit() }
+            fragment?.let {
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.events_fragment_container, it)
+                    .commit()
+            }
         }
+
         return false
     }
 }

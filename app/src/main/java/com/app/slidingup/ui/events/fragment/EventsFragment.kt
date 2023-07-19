@@ -127,7 +127,7 @@ class EventsFragment(private val googleMap : GoogleMap, private val markerLatLng
     private fun initRecyclerView() {
         recyclerView?.layoutManager = LinearLayoutManager(activity, LinearLayoutManager.HORIZONTAL, false)
         recyclerView?.adapter = eventsImagesAdapter
-        if(events?.eventDescription?.eventImages?.size!! >= 1) {
+        if(events?.eventDescription?.eventImages?.size!! > 0) {
             recyclerView?.visibility = View.VISIBLE
             eventsImagesAdapter.updateData(events?.eventDescription?.eventImages as ArrayList<EventImages>)
         }
